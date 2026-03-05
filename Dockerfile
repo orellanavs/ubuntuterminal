@@ -32,19 +32,21 @@ RUN useradd -m -s /bin/bash renderuser \
     && adduser renderuser sudo \
     && echo "renderuser ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
-# Configurar VNC password
+# Configurar VNC
 RUN mkdir -p /home/renderuser/.vnc \
     && echo "render123" | vncpasswd -f > /home/renderuser/.vnc/passwd \
     && chmod 600 /home/renderuser/.vnc/passwd
 
-# Script xstartup para XFCE
-COPY xstartup /home/renderuser/.vnc/xstartup
-RUN chmod +x /home/renderuser/.vnc/xstartup \
+# Crear xstartup
+RUN printf '#!/bin/bash\nunset SESSION_MANAGER\nunset DBUS_SESSION_BUS_ADDRESS\nexec startxfce4\n' \
+    > /home/renderuser/.vnc/xstartup \
+    && chmod +x /home/renderuser/.vnc/xstartup \
     && chown -R renderuser:renderuser /home/renderuser/.vnc
 
-# Script principal
-COPY start.sh /start.sh
-RUN chmod +x /start.sh
+# Crear script de inicio
+RUN printf '#!/bin/bash\nrm -f /tmp/.X1-lock\nrm -rf /tmp/.X11-unix\nmkdir -p /tmp/.X11-unix\nchmod 1777 /tmp/.X11-unix\nsu - renderuser -c "vncserver :1 -geometry 1280x720 -depth 24 -localhost no -fg" &\nsleep 5\necho "VNC listo, iniciando noVNC..."\nwebsockify --web=/usr/share/novnc/ 7681 localhost:5901\n' \
+    > /start.sh \
+    && chmod +x /start.sh
 
 EXPOSE 7681
 
